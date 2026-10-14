@@ -175,7 +175,7 @@
     <div class="page-head">
       <div class="chapter">Chapter 01 &middot; The wide view</div>
       <h2>National Heat Distribution (2018&ndash;2026)</h2>
-      <p>Built from MODIS Terra/Aqua land-surface temperature (LST), averaged over each summer (June&ndash;September) across 475 Chinese cities and districts. Every number on this page &mdash; the coverage diagnostic, the national trend, and the full city ranking with its stability label &mdash; is real output from the source notebook's Step&nbsp;5/7/8 pipeline, run to completion.</p>
+      <p>Built from MODIS Terra/Aqua land-surface temperature (LST), averaged over each summer (June&ndash;September) across 475 Chinese cities and districts. Every number on this page &mdash; the coverage diagnostic and the full city ranking with its stability label &mdash; is real output from the source notebook's Step&nbsp;5/7/8 pipeline, run to completion.</p>
     </div>
 
     <div class="grid-layout">
@@ -200,12 +200,6 @@
       <div class="chip">Resolution<br><b>1&nbsp;km</b></div>
       <div class="chip">Years<br><b>2018&ndash;2026</b></div>
       <div class="chip">Cities analyzed<br><b>475</b></div>
-    </div>
-
-    <div class="panel" style="margin-top:20px;">
-      <h3>National trend &middot; mean share of city area above 35&deg;C LST</h3>
-      <div class="canvas-wrap"><canvas id="p1-trend-canvas" height="200"></canvas></div>
-      <div class="note" id="p1-trend-note">Averaged across all 475 cities each year. 2026 comes out noticeably lower than 2018&ndash;2023 &mdash; consistent with the per-city stability finding below (no city trends significantly warmer over this period; the two together read as one real, if provisional, signal rather than either alone).</div>
     </div>
 
     <div class="panel" style="margin-top:20px;">
@@ -709,61 +703,6 @@ var CITY_CENTROIDS = {"110101":[116.413,39.918],"110102":[116.364,39.915],"11010
     ctx.textAlign = 'left';
   }
 
-  // ============ PAGE 1: NATIONAL TREND -- mean % of city area above the hot threshold ============
-  function buildPage1Trend(){
-    var canvas = document.getElementById('p1-trend-canvas');
-    if(!canvas) return;
-    var rows = (P1_DATA && P1_DATA.national_yearly) || [];
-    var dpr = window.devicePixelRatio||1;
-    var cssW = canvas.clientWidth || canvas.parentElement.clientWidth;
-    var cssH = 200;
-    canvas.width = Math.round(cssW*dpr); canvas.height = Math.round(cssH*dpr);
-    canvas.style.height = cssH+'px';
-    var ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.clearRect(0,0,cssW,cssH);
-    if(!rows.length){
-      ctx.fillStyle = '#8695a7'; ctx.font = '12px "Space Mono", monospace';
-      ctx.fillText('Waiting on page1_national.json...', 10, cssH/2);
-      return;
-    }
-    var padL=40, padB=24, padT=14, padR=14;
-    var w = cssW-padL-padR, h = cssH-padT-padB;
-    var vals = rows.map(function(d){ return d.mean_pct_hot_area; });
-    var vmin = 0, vmax = Math.max.apply(null, vals)*1.15;
-    ctx.strokeStyle = '#1c2530'; ctx.fillStyle = '#8695a7';
-    ctx.font = '11px "Space Mono", monospace';
-    var gridN = 4;
-    for(var g=0; g<=gridN; g++){
-      var gv = vmax*g/gridN;
-      var y = padT + h*(1-(gv-vmin)/(vmax-vmin));
-      ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(cssW-padR,y); ctx.stroke();
-      ctx.fillText(gv.toFixed(0)+'%', 4, y+3);
-    }
-    function xAt(i){ return padL + (rows.length===1 ? w/2 : i*(w/(rows.length-1))); }
-    function yAt(v){ return padT + h*(1-(v-vmin)/(vmax-vmin)); }
-    // area fill
-    ctx.beginPath();
-    rows.forEach(function(d,i){ var x=xAt(i), y=yAt(d.mean_pct_hot_area); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
-    ctx.lineTo(xAt(rows.length-1), padT+h); ctx.lineTo(xAt(0), padT+h); ctx.closePath();
-    var grad = ctx.createLinearGradient(0,padT,0,padT+h);
-    grad.addColorStop(0,'rgba(255,122,69,.35)'); grad.addColorStop(1,'rgba(255,122,69,.02)');
-    ctx.fillStyle = grad; ctx.fill();
-    // line
-    ctx.beginPath();
-    rows.forEach(function(d,i){ var x=xAt(i), y=yAt(d.mean_pct_hot_area); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
-    ctx.strokeStyle = '#ff7a45'; ctx.lineWidth = 2; ctx.stroke();
-    // points + labels
-    rows.forEach(function(d,i){
-      var x=xAt(i), y=yAt(d.mean_pct_hot_area);
-      ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fillStyle = '#ff7a45'; ctx.fill();
-      ctx.fillStyle = '#e6edf3'; ctx.font='11px "Space Mono", monospace'; ctx.textAlign='center';
-      ctx.fillText(d.mean_pct_hot_area.toFixed(1), x, y-9);
-      ctx.fillStyle = '#8695a7'; ctx.fillText(d.year, x, cssH-6);
-    });
-    ctx.textAlign = 'left';
-  }
-
   // ============ PAGE 1: CITY RANKING TABLE + STABILITY SUMMARY (real Step7/8 notebook output) ============
   var P1_RANKING_SHOWN = 30;
   function stabilityTag(row){
@@ -951,7 +890,7 @@ var CITY_CENTROIDS = {"110101":[116.413,39.918],"110102":[116.364,39.915],"11010
     document.getElementById(btn.dataset.page).classList.add('active');
     // the just-shown section only now has a real (non-zero) width -- redraw its canvas(es)
     // now rather than relying on the stale draw from whenever its JSON happened to load.
-    if(btn.dataset.page === 'p1'){ buildPage1Coverage(); buildPage1Map(); buildPage1Trend(); buildPage1Ranking(); }
+    if(btn.dataset.page === 'p1'){ buildPage1Coverage(); buildPage1Map(); buildPage1Ranking(); }
     else if(pageRenderers[btn.dataset.page]) pageRenderers[btn.dataset.page]();
   });
 
@@ -959,8 +898,7 @@ var CITY_CENTROIDS = {"110101":[116.413,39.918],"110102":[116.364,39.915],"11010
   fontsReady.then(function(){
     buildPage1Coverage();
     buildPage1Map();
-    buildPage1Trend();
-    window.addEventListener('resize', function(){ buildPage1Coverage(); buildPage1Map(); buildPage1Trend(); });
+    window.addEventListener('resize', function(){ buildPage1Coverage(); buildPage1Map(); });
 
     loadJSON('page1_national.json').then(function(data){
       P1_DATA = data;
@@ -968,7 +906,6 @@ var CITY_CENTROIDS = {"110101":[116.413,39.918],"110102":[116.364,39.915],"11010
         COVERAGE = data.national_yearly.map(function(d){ return {y:d.year, v:d.coverage_pct}; });
       }
       buildPage1Coverage();
-      buildPage1Trend();
       buildPage1Ranking();
       buildPage1Map();
     }).catch(function(err){
