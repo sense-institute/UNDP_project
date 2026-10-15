@@ -89,6 +89,12 @@
   .legend{margin-top:12px;}
   .legend .bar{height:10px; border-radius:6px; width:100%;}
   .legend .ticks{display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; color:var(--text-dim); margin-top:4px;}
+  .p1-map-wrap{max-width:960px; margin:0 auto;}
+  .p1-map-foot{display:grid; grid-template-columns:minmax(220px,360px) 1fr; gap:20px; align-items:start; margin-top:4px;}
+  .p1-map-foot .note{margin-top:12px;}
+  .p1-cov-row{display:grid; grid-template-columns:3fr 2fr; gap:20px; align-items:start;}
+  .p1-cov-row .note{margin-top:0;}
+  @media (max-width:820px){ .p1-map-foot, .p1-cov-row{grid-template-columns:1fr; gap:0;} .p1-cov-row .note{margin-top:12px;} }
   .legend .unit{font-size:11px; color:var(--text-dim); margin-top:2px;}
 
   .year-row{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;}
@@ -196,28 +202,31 @@
       <p>Built from MODIS Terra/Aqua land-surface temperature (LST), averaged over each summer (June&ndash;September) across 475 Chinese cities and districts. Every number on this page &mdash; the coverage diagnostic and the full city ranking with its stability label &mdash; is real output from the source notebook's Step&nbsp;5/7/8 pipeline, run to completion.</p>
     </div>
 
-    <div class="grid-layout">
-      <div class="panel">
-        <h3>Summer MODIS valid coverage &middot; nationwide</h3>
+    <div class="chips" id="p1-chips">
+      <div class="chip">Satellite<br><b>MOD11A2 / MYD11A2</b></div>
+      <div class="chip">Resolution<br><b>1&nbsp;km</b></div>
+      <div class="chip">Years<br><b>2018&ndash;2026</b></div>
+      <div class="chip">Cities analyzed<br><b>475</b></div>
+    </div>
+
+    <div class="panel" style="margin-top:20px;">
+      <h3>National heat map &middot; 2026 summer land-surface temperature</h3>
+      <div class="canvas-wrap p1-map-wrap"><canvas id="p1-map-canvas" height="420"></canvas><div class="tooltip" id="p1-map-tip"></div></div>
+      <div class="p1-map-foot">
+        <div class="legend" id="p1-map-legend"><div class="bar"></div><div class="ticks"></div><div class="unit"></div></div>
+        <div class="note" id="p1-map-note">A real pixel-level MODIS composite &mdash; not a per-city summary &mdash; downloaded straight from Earth Engine and colored with the exact same palette as the source notebook's own live map, so this is a snapshot of that map rather than a separate visualization. Hover for the nearest city's name and its real % hot area.</div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:20px;">
+      <h3>Summer MODIS valid coverage &middot; nationwide</h3>
+      <div class="p1-cov-row">
         <div class="canvas-wrap"><canvas id="p1-coverage-canvas" height="220"></canvas></div>
         <div class="note">
           Coverage = the share of pixels nationwide with at least one cloud-free observation during that year's summer window (scale=5000m &mdash; a fast diagnostic, not the precise per-city statistic used elsewhere in this analysis).
           2018&ndash;2021 and 2025 come out close to full coverage; other years read a little lower &mdash; that's <b>real year-to-year cloud cover</b> compounding with <b>MODIS orbital drift</b> (both Terra and Aqua have exhausted their station-keeping fuel and now cross the same spot at a slowly shifting time of day), not missing data or a rendering artifact. The actual spread is small &mdash; 97.1% to 98.6% &mdash; even where the underlying map looks visually very different between years.
         </div>
       </div>
-      <div class="panel">
-        <h3>National heat map &middot; 2026 summer land-surface temperature</h3>
-        <div class="canvas-wrap"><canvas id="p1-map-canvas" height="220"></canvas><div class="tooltip" id="p1-map-tip"></div></div>
-        <div class="legend" id="p1-map-legend"><div class="bar"></div><div class="ticks"></div><div class="unit"></div></div>
-        <div class="note" id="p1-map-note">A real pixel-level MODIS composite &mdash; not a per-city summary &mdash; downloaded straight from Earth Engine and colored with the exact same palette as the source notebook's own live map, so this is a snapshot of that map rather than a separate visualization. Hover for the nearest city's name and its real % hot area.</div>
-      </div>
-    </div>
-
-    <div class="chips" id="p1-chips">
-      <div class="chip">Satellite<br><b>MOD11A2 / MYD11A2</b></div>
-      <div class="chip">Resolution<br><b>1&nbsp;km</b></div>
-      <div class="chip">Years<br><b>2018&ndash;2026</b></div>
-      <div class="chip">Cities analyzed<br><b>475</b></div>
     </div>
 
     <div class="panel" style="margin-top:20px;">
@@ -401,7 +410,7 @@ var CITY_CENTROIDS = {"110101":[116.413,39.918],"110102":[116.364,39.915],"11010
   }
 
   function renderLegendBar(el, stops, vmin, vmax, unit){
-    var css = 'linear-gradient(90deg,' + stops.join(',') + ')';
+    var css = 'linear-gradient(90deg,' + stops.map(function(c){ c=String(c); return /^[0-9a-f]{3,8}$/i.test(c) ? '#'+c : c; }).join(',') + ')';
     el.querySelector('.bar').style.background = css;
     var ticks = el.querySelector('.ticks');
     var n = 5;
@@ -810,7 +819,7 @@ var CITY_CENTROIDS = {"110101":[116.413,39.918],"110102":[116.364,39.915],"11010
     var canvas = document.getElementById('p1-map-canvas');
     var dpr = window.devicePixelRatio||1;
     var cssW = canvas.clientWidth || canvas.parentElement.clientWidth;
-    var cssH = 220;
+    var cssH = Math.round(Math.min(560, Math.max(260, cssW*0.6)));
     canvas.width = Math.round(cssW*dpr); canvas.height = Math.round(cssH*dpr);
     canvas.style.height = cssH+'px';
     var ctx = canvas.getContext('2d');
