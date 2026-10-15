@@ -135,6 +135,24 @@
   table.clusters tr:last-child td{border-bottom:none;}
   table.clusters a{text-decoration:none; font-family:var(--sans); font-weight:600;}
   table.clusters a:hover{text-decoration:underline;}
+  .table-scroll{overflow-x:auto; max-width:100%;}
+  .p5-map{max-width:960px; margin:0 auto;}
+  .p5-legend{margin-top:10px; font-size:12px; color:var(--text-dim); text-align:center;}
+  table.p5-table td.links{white-space:nowrap; font-family:var(--sans);}
+  table.p5-table td.links .sep{color:var(--text-dim); margin:0 8px;}
+  table.p5-table td:nth-child(3), table.p5-table th:nth-child(3){text-align:right;}
+  table.p5-table td:nth-child(2), table.p5-table th:nth-child(2){text-align:right;}
+  table.p5-table td:nth-child(4), table.p5-table th:nth-child(4){padding-left:24px;}
+  table.p5-table th:nth-child(1){width:48px;}
+  table.p5-table th:nth-child(2){width:80px;}
+  table.p5-table th:nth-child(3){width:120px;}
+  table.p5-table th:nth-child(5){width:1%; white-space:nowrap;}
+  @media (max-width:600px){
+    table.p5-table td, table.p5-table th{padding:8px 6px;}
+    table.p5-table td:nth-child(4), table.p5-table th:nth-child(4){padding-left:10px;}
+    table.p5-table td.links a{display:block; line-height:1.7;}
+    table.p5-table td.links .sep{display:none;}
+  }
 
   footer{border-top:1px solid var(--border); padding-block:22px; color:var(--text-dim); font-size:12px; text-align:center;}
   footer a{color:var(--text-dim);}
@@ -610,16 +628,17 @@ var CITY_CENTROIDS = {"110101":[116.413,39.918],"110102":[116.364,39.915],"11010
     var body = document.getElementById('p5-body');
     var clusters = data.clusters || [];
     var html = ''
-      + '<div class="grid-layout">'
-      + '  <div class="panel">'
-      + '    <h3>Cluster locations within Shenzhen</h3>'
-      + '    <div class="canvas-wrap"><canvas id="p5-canvas" height="400"></canvas></div>'
+      + '<div class="panel" style="margin-top:20px;">'
+      + '  <h3>Cluster locations within Shenzhen</h3>'
+      + '  <div class="canvas-wrap p5-map"><canvas id="p5-canvas" height="400"></canvas></div>'
+      + '  <div class="p5-legend">Circle size &prop; cluster area &middot; numbers match the table below</div>'
+      + '</div>'
+      + '<div class="panel" style="margin-top:20px;">'
+      + '  <h3>Clusters sorted by area</h3>'
+      + '  <div class="table-scroll">'
+      + '    <table class="clusters p5-table"><thead><tr><th>#</th><th>Cells</th><th>&#8776;Area (km&sup2;)</th><th>Centroid (lat, lon)</th><th>Open in</th></tr></thead><tbody id="p5-tbody"></tbody></table>'
       + '  </div>'
-      + '  <div class="panel">'
-      + '    <h3>Sorted by area</h3>'
-      + '    <table class="clusters"><thead><tr><th>#</th><th>Cells</th><th>&#8776;Area (km&sup2;)</th><th>Coordinates</th><th>View</th></tr></thead><tbody id="p5-tbody"></tbody></table>'
-      + '    <div class="note">'+data.note+'</div>'
-      + '  </div>'
+      + '  <div class="note">'+data.note+'</div>'
       + '</div>';
     body.innerHTML = html;
 
@@ -628,9 +647,9 @@ var CITY_CENTROIDS = {"110101":[116.413,39.918],"110102":[116.364,39.915],"11010
       var tr = document.createElement('tr');
       var gmaps = 'https://www.google.com/maps?q='+cl.centroid_lat+','+cl.centroid_lon;
       var amap = 'https://uri.amap.com/marker?position='+cl.centroid_lon+','+cl.centroid_lat+'&name=HH%20cluster%20'+(i+1);
-      tr.innerHTML = '<td>'+(i+1)+'</td><td>'+cl.n_cells+'</td><td>'+cl.approx_area_km2+'</td>'
+      tr.innerHTML = '<td>'+(i+1)+'</td><td>'+cl.n_cells+'</td><td>'+Number(cl.approx_area_km2).toFixed(2)+'</td>'
         + '<td>'+cl.centroid_lat.toFixed(4)+', '+cl.centroid_lon.toFixed(4)+'</td>'
-        + '<td><a href="'+gmaps+'" target="_blank" rel="noopener">Google</a> / <a href="'+amap+'" target="_blank" rel="noopener">Amap</a></td>';
+        + '<td class="links"><a href="'+gmaps+'" target="_blank" rel="noopener">Google Maps</a><span class="sep">&middot;</span><a href="'+amap+'" target="_blank" rel="noopener">Amap</a></td>';
       tbody.appendChild(tr);
     });
 
@@ -649,11 +668,19 @@ var CITY_CENTROIDS = {"110101":[116.413,39.918],"110102":[116.364,39.915],"11010
       var maxCells = Math.max.apply(null, clusters.map(function(c){return c.n_cells;}));
       clusters.forEach(function(cl){
         var xy = projectPoint(cl.centroid_lon, cl.centroid_lat, SZ_BBOX, cssW, cssH);
-        var rad = 5 + 16 * Math.sqrt(cl.n_cells/maxCells);
+        var rad = (5 + 16 * Math.sqrt(cl.n_cells/maxCells)) * Math.min(1, Math.max(0.55, cssW/700));
         ctx.beginPath(); ctx.arc(xy[0],xy[1],rad,0,Math.PI*2);
         ctx.fillStyle = 'rgba(209,73,91,.55)'; ctx.fill();
         ctx.strokeStyle = QUAD_COLOR.HH; ctx.lineWidth = 1.5; ctx.stroke();
       });
+      // rank labels drawn last so overlapping circles never hide a number
+      ctx.font = '700 11px "Space Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      clusters.forEach(function(cl, i){
+        var xy = projectPoint(cl.centroid_lon, cl.centroid_lat, SZ_BBOX, cssW, cssH);
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(13,18,24,.85)'; ctx.strokeText(String(i+1), xy[0], xy[1]);
+        ctx.fillStyle = '#fff'; ctx.fillText(String(i+1), xy[0], xy[1]);
+      });
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     }
     pageRenderers.p5 = render;
     render();
